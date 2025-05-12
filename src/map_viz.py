@@ -11,7 +11,6 @@ def make_map(gdf, value_col="prevented", code_col="lsoa21cd", legend_name="Preve
         crs="EPSG3857"
     )
 
-    # 2) Add a light-grey background
     folium.TileLayer(
         tiles="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
         attr="CartoDB",
@@ -19,14 +18,12 @@ def make_map(gdf, value_col="prevented", code_col="lsoa21cd", legend_name="Preve
         control=False,
     ).add_to(m)
 
-    # 3) Build a colormap
     vmax = gdf[value_col].max()
     vmin = gdf[value_col].min()
     colormap = linear.YlOrRd_09.scale(vmin, vmax)
     colormap.caption = legend_name
     colormap.add_to(m)
 
-    # 4) Draw polygons with style & tooltip
     folium.GeoJson(
         gdf,
         style_function=lambda feat: {
