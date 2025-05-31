@@ -4,7 +4,7 @@ from src.data_processing import process_data
 from src.map_viz import make_map, display_map
 
 st.set_page_config(page_title="Police Allocation Map", layout="wide")
-st.title("Police Demand Check (Data is fake)")
+st.title("Police Allocation + Prevention Map")
 
 st.sidebar.header("Upload your mock data")
 forecast_file = st.sidebar.file_uploader(
