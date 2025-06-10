@@ -1,77 +1,35 @@
 import streamlit as st
 import geopandas as gpd
 from src.data_processing import process_data
-from src.map_viz import make_map, display_map
+from src.map_viz import make_map_full, make_ward_grid_map, display_map
+
 
 st.set_page_config(page_title="Police Allocation Map", layout="wide")
-st.title("Police Allocation + Prevention Map")
+st.title("Police Allocation Map")
 
-st.sidebar.header("Upload your mock data")
+st.sidebar.header("Upload your data")
 forecast_file = st.sidebar.file_uploader(
-    "Upload forecast CSV", type=["csv"], key="forecast"
-)
-real_file = st.sidebar.file_uploader(
-    "Upload real CSV", type=["csv"], key="real"
+    "Upload grid forecast CSV", type=["geojson", "json"], key="grid"
 )
 
-st.sidebar.header("The parameters")
-officer_hours = st.sidebar.number_input(
-    "Officer-hours per ward(weekly)", value=800, step=50
-)
+if forecast_file:
+    try:   
+        wards = gpd.read_file("geo/london_wards.geojson")
+        grid = gpd.read_file(forecast_file)
 
-elasticity = st.sidebar.slider(
-    "Burglary elasticity", min_value=-1.0, max_value=0.0, value=-0.3, step=0.05
-)
+        ward_code_col = "Ward code"
+        options = ["All wards"] + wards[ward_code_col].tolist()
+        selection =   st.sidebar.selectbox("Map view", options)
 
-if forecast_file and real_file:
-    try:
-        df = process_data(
-            forecast_file,
-            real_file,
-            officer_hours=officer_hours,
-            elasticity=elasticity
-        )
-
-        gdf = gpd.read_file("geo/london_lsoa.geojson")
-        merged = gdf.merge(
-            df,
-            left_on="lsoa21cd",
-            right_on="lsoa_code",
-            how="inner"
-        )
-
-        m = make_map(
-            merged,
-            value_col="prevented",
-            code_col="lsoa21cd",
-            legend_name="Prevented burglaries"
-        )
-
+        if selection == "All wards":
+            m = make_map_full(wards, "Ward code")
+        else:
+            m = make_ward_grid_map(wards, grid, selected_ward_code=selection,ward_code_col=ward_code_col, crime_col="predicted_crime"
+            )
 
         display_map(st, m, width=900, height=600)
-
-
-        col1, col2, col3 = st.columns(3)
-        total_obs = int(merged["observed"].sum())
-        total_prevented = int(merged["prevented"].sum())
-
-        col1.metric("Total observed burglaries", f"{total_obs}")
-        col2.metric("Total prevented", f"{total_prevented}")
-        col3.metric("Elasticity", f"{elasticity}")
-
 
     except Exception as e:
         st.error(f"Error while processing data: {e}")
 else:
-    st.info("Upload forecast and real data CSVs in the sidebar, please")
-
-
-st.markdown(
-    """
-    **CSV format**
-    - You need both to have a column 'lsoa_code',
-    - forecast csv needs 'forecast' and 'area_km2',
-    - real data csv needs 'observed' and 'area_km2'
-
-    """
-)
+    st.info("Upload forecast grid CSV in the sidebar, please")

@@ -1,37 +1,25 @@
 import geopandas as gpd
+from shapely.geometry import box
 import numpy as np
-import pandas as pd
 
-gdf = gpd.read_file("geo/london_lsoa.geojson")
+wards = gpd.read_file("geo/london_wards.geojson")
 
-gdf = gdf.to_crs(epsg=3395)  
-gdf["area_km2"] = gdf.geometry.area / 1e6
+wards_m = wards.to_crs(epsg=3857)
+xmin, ymin, xmax, ymax = wards_m.total_bounds
 
-codes = gdf["lsoa21cd"].values
-areas = gdf["area_km2"].values
+# build a 500×500 m grid covering all wards
+cell_size = 250  
+xs = np.arange(xmin, xmax, cell_size)
+ys = np.arange(ymin, ymax, cell_size)
 
-np.random.seed(69)
+polygons = []
+for x in xs:
+    for y in ys:
+        polygons.append(box(x, y, x + cell_size, y + cell_size))
 
-forecast_counts = np.random.poisson(lam=20, size=len(codes))
+grid = gpd.GeoDataFrame(geometry=polygons, crs=wards_m.crs)
 
-observed_counts = np.maximum(
-    0,
-    np.round(forecast_counts * (1 + 0.2 * np.random.randn(len(codes))))
-).astype(int)
+grid["predicted_crime"] = np.random.choice([0, 1], size=len(grid))
 
-df_forecast = pd.DataFrame({
-    "lsoa_code": codes,
-    "forecast": forecast_counts,
-    "area_km2": areas
-})
-
-df_real = pd.DataFrame({
-    "lsoa_code": codes,
-    "observed": observed_counts,
-    "area_km2": areas
-})
-
-df_forecast.to_csv("data/mock_forecast.csv", index=False)
-df_real.to_csv("data/mock_real.csv", index=False)
-
-print(f"Generated {len(codes)} rows in each of:")
+grid = grid.to_crs(epsg=4326)
+grid.to_file("data/grid.geojson", driver="GeoJSON")
