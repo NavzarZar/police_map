@@ -36,7 +36,7 @@ if data_source == "Upload Forecast":
 else:
     # Past Month Data
     st.sidebar.header("Select Month")
-    # Assume CSV files are named like burglaries_YYYY_MM.csv in data folder
+    #Files are named like burglary_YYYY_MM.csv in historical folder
     data_folder = "historical"
     available_months = []
     if os.path.exists(data_folder):
