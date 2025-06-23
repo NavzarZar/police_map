@@ -3,6 +3,7 @@ import pulp
 import pandas as pd
 import numpy as np
 
+# Load the grid with predicted crime
 grid = gpd.read_file('data/model_predictions.geojson')  
 grid = grid[grid['predicted_crime'] == 1].copy()
 grid = grid.to_crs("EPSG:27700")  
@@ -10,11 +11,13 @@ grid['cell_id'] = grid.index.astype(int)
 
 res = gpd.read_file('geo/residential_landuse.gpkg').to_crs("EPSG:27700")
 
+# Ensure the grid has a geometry column
 inter = gpd.overlay(grid[['cell_id', 'geometry']],
                     res[['geometry']],
                     how='intersection'
 )
 
+# Calculate the area of the intersection
 inter['res_area'] = inter.geometry.area
 res_sum = (
     inter
@@ -23,11 +26,14 @@ res_sum = (
     .reset_index()
 )
 
+# Merge the residential area back to the grid
 grid = grid.merge(res_sum, on='cell_id', how='left')
 grid['res_area'] = grid['res_area'].fillna(0)
 grid['res_frac'] = grid['res_area'] / grid.geometry.area
 grid['S_g'] = (grid.geometry.area / 1e6) * grid['res_frac']  # Convert area to km²
 
+
+# Load the wards and calculate centroids
 wards = gpd.read_file('geo/london_wards.geojson')
 grid['centroid'] = grid.geometry.centroid
 
@@ -55,13 +61,13 @@ num_officers = 100
 I = range(1, num_officers + 1)
 
 def solve_ward(ward_code):
-
+    # Filter the grid for the specific ward
     ward_cells = grid[grid['Ward code'] == ward_code]
     ward_cells = ward_cells[ward_cells['S_g'] > 0] 
     G = ward_cells['cell_id'].tolist()
     t_g = ward_cells.set_index('cell_id')['t_g'].to_dict()
 
-
+    # Start the actual solver parameters
     prob = pulp.LpProblem(f"Ward_{ward_code}_Patrol", pulp.LpMaximize)
     y = pulp.LpVariable.dicts('y', (I, days), cat='Binary')
     x = pulp.LpVariable.dicts('x', (I, G, days, blocks), lowBound=0, cat='Integer')
@@ -77,19 +83,19 @@ def solve_ward(ward_code):
         for d in days:
             prob += pulp.lpSum(x[i][g][d][b] for g in G for b in blocks) <= 2 * y[i][d]
 
-    
+    # 
     for g in G:
         tg = t_g[g]
         for d in days:
             for b in blocks:
                 prob += pulp.lpSum(x[i][g][d][b] for i in I) <= tg
 
-    
+    # Call the actual solver
     prob.solve(pulp.PULP_CBC_CMD(msg=False))
 
     print(f"  → {len(prob.variables())} vars, {len(prob.constraints)} constraints")
 
-
+    # Extract the results
     rows = []
     for i in I:
         for g in G:
@@ -108,7 +114,7 @@ def solve_ward(ward_code):
 
     return pd.DataFrame(rows)
 
-
+# Test runs + displaying
 if __name__ == "__main__":
     ward_code = 'E05013570'
     df = solve_ward(ward_code)

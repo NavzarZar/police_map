@@ -6,13 +6,15 @@ from src.data_processing import process_data
 from src.map_viz import make_map_full, make_ward_lsoa_map, display_map, make_ward_grid_map
 from src.police_allocation import solve_ward, num_officers
 
-
+# Give the app a title 
 st.set_page_config(page_title="Police Allocation Map", layout="wide")
 st.title("Police Allocation Map")
 
+# Data type selection
 st.sidebar.header("Select Data Source")
 data_source = st.sidebar.radio("Choose data source", ["Upload Forecast", "Past Month Data"])
 
+# Load wards data
 wards = gpd.read_file("geo/london_wards.geojson")
 ward_code_col = "Ward code"
 options = ["All wards"] + wards[ward_code_col].tolist()
@@ -26,23 +28,29 @@ if data_source == "Upload Forecast":
     if forecast_file:
         try:
             grid = gpd.read_file(forecast_file)
+            # Show full map if all wards
             if selection == "All wards":
                 m = make_map_full(wards, ward_code_col)
             else:
+                # Show particular ward
                 m = make_ward_grid_map(wards, grid, selected_ward_code=selection, ward_code_col=ward_code_col, crime_col="predicted_crime")
             display_map(st, m, width=900, height=600)
 
+            # Call the MILP solver
             df = solve_ward(selection)
             if df.empty:
+                # No predictions in this ward
                 st.warning("No predictions in this ward, nothing to schedule.")
             else:
+                # Compute allocation efficiency
                 actual = df['hours'].sum()
                 hours_per_officer = 2 * 4 
                 avail = num_officers * hours_per_officer
                 util = actual / avail
                 saved = avail - actual
                 saved_off = int(saved // hours_per_officer)
-
+                
+                # Display the results
                 st.subheader("Allocation Efficiency")
                 col1, col2, col3, col4 = st.columns(4)
                 col1.metric("Assigned hours", f"{actual:.0f} h", delta=f"{util:.1%} utilization")

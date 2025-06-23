@@ -3,6 +3,7 @@ from streamlit_folium import folium_static
 from streamlit.components.v1 import html
 import geopandas as gpd
 
+# Create the full ward map
 def make_map_full(wards_gdf, ward_code_col):
     wards_wgs = wards_gdf.to_crs(epsg=4326)
     m = folium.Map(tiles=None)
@@ -16,6 +17,7 @@ def make_map_full(wards_gdf, ward_code_col):
     ).add_to(m)
     return m
 
+# Create a map for a specific ward with grid cells
 def make_ward_grid_map(wards_gdf, grid_gdf, selected_ward_code, ward_code_col, crime_col):
     ward_gdf = wards_gdf[wards_gdf[ward_code_col] == selected_ward_code]
     wards_wgs = wards_gdf.to_crs(epsg=4326)
@@ -48,6 +50,7 @@ def make_ward_grid_map(wards_gdf, grid_gdf, selected_ward_code, ward_code_col, c
         ).add_to(m)
     return m
 
+# Create a map for a specific ward with LSOAs and burglary data
 def make_ward_lsoa_map(wards_gdf, lsoa_gdf, burglary_data, selected_ward_code, ward_code_col, lsoa_code_col, crime_col):
     ward_gdf = wards_gdf[wards_gdf[ward_code_col] == selected_ward_code]
     wards_wgs = wards_gdf.to_crs(epsg=4326)
@@ -85,6 +88,7 @@ def make_ward_lsoa_map(wards_gdf, lsoa_gdf, burglary_data, selected_ward_code, w
     ).add_to(m)
     return m
 
+# Display the map in a Streamlit app
 def display_map(streamlit_app, m, width=700, height=500):
     map_html = m._repr_html_()
     html(map_html, width=width, height=height)

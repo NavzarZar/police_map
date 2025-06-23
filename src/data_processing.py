@@ -12,7 +12,7 @@ def process_data(forecast_file, real_file, officer_hours=800, elasticity=-0.3, a
 
 
     area_col = "area_km2_f" if area_source == "forecast" else "area_km2_r"
-
+    # Check if the area column exists
     if area_col not in df.columns:
         raise KeyError("missing area km2 column, there is a problem somewhere")
     df = df.rename(columns={area_col: "area_km2"})
@@ -21,17 +21,20 @@ def process_data(forecast_file, real_file, officer_hours=800, elasticity=-0.3, a
         if col not in df.columns:
             raise KeyError("Missing a needed column")
 
-
+    # Calculate risk density and allocate officer hours
     df["risk_density"] = df["forecast"] / df["area_km2"]
     df["base_density"] = officer_hours / df["area_km2"]
 
     total_risk = df["risk_density"].sum()
 
+    # Allocate officer hours based on risk density
     df["allocated_hours"] = officer_hours * df["risk_density"] / total_risk
 
+    # Calculate new density and change in density
     df["new_density"] = df["allocated_hours"] / df["area_km2"]
     df["delta_density"] = (df["new_density"] - df["base_density"]) / df["base_density"]
-                           
+
+    # Calculate the predicted change in burglary and prevented incidents                 
     df["predict_change_burglary"] = elasticity * df["delta_density"]
     df["prevented"] = df["predict_change_burglary"] * df["observed"]
 
